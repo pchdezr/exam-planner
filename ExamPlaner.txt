@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EXAM PLANNER</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;600;800;900&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<style>
+
+/* ===== Overlay ===== */
+.overlay{
+position:fixed;
+inset:0;
+background:rgba(0,0,0,.4);
+opacity:0;
+pointer-events:none;
+transition:.3s;
+z-index:998;
+}
+.overlay.active{
+opacity:1;
+pointer-events:auto;
+}
+
+/* ===== Animated Popup ===== */
+.popup{
+position:fixed;
+top:50%;
+left:50%;
+transform:translate(-50%,-50%) scale(.5);
+background:white;
+padding:25px 40px;
+border-radius:25px;
+box-shadow:0 20px 50px rgba(0,0,0,.3);
+font-weight:800;
+z-index:2000;
+opacity:0;
+animation:popupShow .8s forwards;
+}
+
+@keyframes popupShow{
+0%{opacity:0;transform:translate(-50%,-50%) scale(.5);}
+60%{opacity:1;transform:translate(-50%,-50%) scale(1.1);}
+100%{transform:translate(-50%,-50%) scale(1);}
+}
+
+:root{
+--primary:#6C63FF;
+--success:#4CAF50;
+--danger:#ff5252;
+--warning:#ff9800;
+--bg:#F4F6FB;
+--card:#FFFFFF;
+--text:#333;
+}
+
+body{
+margin:0;
+font-family:'Kanit',sans-serif;
+background:var(--bg);
+color:var(--text);
+transition:.8s;
+}
+
+body.dark{
+--bg:#1e1e2f;
+--card:#2b2b40;
+--text:#eee;
+}
+
+.topbar{
+height:60px;
+background:var(--card);
+display:flex;
+align-items:center;
+padding:0 20px;
+box-shadow:0 2px 10px rgba(0,0,0,.05);
+position:sticky;
+top:0;
+z-index:1000;
+}
+
+.menu-btn{font-size:26px;cursor:pointer;margin-right:15px;}
+.app-title{font-weight:800;color:var(--primary);flex:1;}
+button{cursor:pointer;border:none;border-radius:12px;padding:6px 12px;font-weight:700;margin:2px;}
+
+.sidebar{
+position:fixed;
+left:-260px;
+top:0;
+width:260px;
+height:100%;
+background:var(--card);
+box-shadow:2px 0 10px rgba(0,0,0,.1);
+padding-top:60px;
+transition:.3s;
+z-index:999;
+}
+.sidebar.active{left:0;}
+.sidebar a{
+display:block;
+padding:15px 20px;
+text-decoration:none;
+color:var(--text);
+font-weight:600;
+cursor:pointer;
+}
+.sidebar a:hover{background:#f0f0ff;color:var(--primary);}
+
+.page{display:none;padding:20px;max-width:900px;margin:auto;}
+.page.active{display:block;}
+
+.card{
+background:var(--card);
+padding:20px;
+border-radius:20px;
+box-shadow:0 8px 20px rgba(0,0,0,.05);
+margin-bottom:20px;
+}
+
+input{
+width:100%;
+margin-bottom:10px;
+padding:10px;
+border-radius:12px;
+border:2px solid #eee;
+font-family:'Kanit';
+}
+
+.add-btn{background:var(--success);color:white;}
+.clear-btn{background:var(--danger);color:white;}
+.exam-btn{background:white;color:var(--primary);}
+
+.hero-card{
+padding:30px;
+border-radius:25px;
+background:linear-gradient(135deg,#6C63FF,#9C88FF);
+color:white;
+margin-bottom:20px;
+}
+
+.hero-card.exam-mode{
+background:linear-gradient(135deg,#ff5252,#ff1744);
+}
+
+.glass-progress{
+background:rgba(255,255,255,.3);
+height:12px;
+border-radius:20px;
+overflow:hidden;
+margin-top:15px;
+}
+.glass-progress-bar{
+height:100%;
+background:white;
+width:0%;
+transition:.5s;
+}
+
+.todo-item{
+background:var(--card);
+padding:15px;
+border-radius:14px;
+margin-bottom:10px;
+display:flex;
+justify-content:space-between;
+align-items:center;
+box-shadow:0 2px 6px rgba(0,0,0,.05);
+}
+
+.completed{text-decoration:line-through;opacity:.6;}
+
+.popup{
+position:fixed;
+top:50%;
+left:50%;
+transform:translate(-50%,-50%);
+background:white;
+padding:20px 35px;
+border-radius:20px;
+box-shadow:0 10px 40px rgba(0,0,0,.25);
+font-weight:700;
+z-index:2000;
+}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+<div class="overlay" id="overlay" onclick="toggleMenu()"></div>
+<div class="menu-btn" onclick="toggleMenu()">☰</div>
+<div class="app-title">EXAM PLANNER</div>
+<button onclick="toggleDark()">🌙</button>
+</div>
+
+<div class="sidebar" id="sidebar">
+<a onclick="goToPage('home')">🏠 หน้าแรก</a>
+<a onclick="goToPage('stats')">📊 สถิติ</a>
+<a onclick="goToPage('study')">📖 ตัวช่วยการอ่าน</a>
+</div>
+
+<div id="home" class="page active">
+
+<div class="hero-card" id="heroCard">
+<div>📅 สอบถัดไป</div>
+<h2 id="heroSubject">ยังไม่มีวิชา</h2>
+<div id="heroCountdown">--</div>
+<div id="heroTimer">Let's read now!</div>
+<button class="exam-btn" onclick="toggleExamMode()">🔥 โหมดอาทิตย์สอบ</button>
+<div class="glass-progress">
+<div class="glass-progress-bar" id="progressBar"></div>
+</div>
+<div id="progressText">ความคืบหน้า 0%</div>
+<div>🔥 Streak: <span id="streakDisplay">0</span> วัน</div>
+</div>
+
+<div class="card">
+<h3>➕ เพิ่มวิชาสอบ</h3>
+<input type="text" id="subjectInput" placeholder="ชื่อวิชา">
+<input type="date" id="dateOnly">
+<input type="time" id="timeOnly">
+<button class="add-btn" onclick="addTask()">เพิ่ม</button>
+<button class="clear-btn" onclick="clearAll()">ล้างทั้งหมด</button>
+</div>
+
+<h3>📅 วิชาที่กำลังจะสอบ</h3>
+<div id="todoList"></div>
+
+<h3>📚 สอบแล้ว</h3>
+<div id="completedList"></div>
+
+</div>
+
+<div id="stats" class="page">
+<div class="card">
+<h3>📊 สถิติ</h3>
+<p>ทั้งหมด: <span id="statTotal">0</span></p>
+<p>สอบแล้ว: <span id="statDone">0</span></p>
+<p>กำลังจะสอบ: <span id="statUpcoming">0</span></p>
+<p>ความคืบหน้า: <span id="statPercent">0%</span></p>
+<canvas id="progressChart"></canvas>
+</div>
+</div>
+
+<div id="study" class="page">
+<div class="card">
+<h3>📖 ตัวช่วยการอ่าน</h3>
+<button class="add-btn" onclick="generateStudyPlan()">สร้างแผนอัตโนมัติ</button>
+</div>
+<div id="todayAlert"></div>
+<div id="studyPlanList"></div>
+</div>
+
+<script>
+let tasks=JSON.parse(localStorage.getItem("tasks"))||[];
+let completedTasks=JSON.parse(localStorage.getItem("completedTasks"))||[];
+let studyPlans=JSON.parse(localStorage.getItem("studyPlans"))||[];
+let statsData=JSON.parse(localStorage.getItem("statsData"))||{streak:0};
+let examMode=false;
+let chart;
+
+function saveData(){
+localStorage.setItem("tasks",JSON.stringify(tasks));
+localStorage.setItem("completedTasks",JSON.stringify(completedTasks));
+localStorage.setItem("studyPlans",JSON.stringify(studyPlans));
+localStorage.setItem("statsData",JSON.stringify(statsData));
+}
+
+function toggleMenu(){document.getElementById("sidebar").classList.toggle("active");}
+function toggleDark(){document.body.classList.toggle("dark");}
+
+function goToPage(p){
+document.querySelectorAll(".page").forEach(pg=>pg.classList.remove("active"));
+document.getElementById(p).classList.add("active");
+updateStats();
+renderStudyPlans();
+}
+
+function pad(n){return n.toString().padStart(2,"0");}
+
+function showPopup(msg){
+const pop=document.createElement("div");
+pop.className="popup";
+pop.textContent=msg;
+document.body.appendChild(pop);
+setTimeout(()=>pop.remove(),2500);
+}
+
+function addTask(){
+const subject=document.getElementById("subjectInput").value.trim();
+const date=document.getElementById("dateOnly").value;
+const time=document.getElementById("timeOnly").value;
+if(!subject||!date||!time){alert("กรอกข้อมูลให้ครบ");return;}
+const fullDate=new Date(`${date}T${time}`);
+tasks.push({id:Date.now(),subject,timestamp:fullDate.getTime()});
+saveData();
+renderTasks();
+document.getElementById("subjectInput").value="";
+document.getElementById("dateOnly").value="";
+document.getElementById("timeOnly").value="";
+}
+
+function deleteTask(id){
+tasks=tasks.filter(t=>t.id!==id);
+saveData();renderTasks();
+}
+
+function completeTask(id){
+const task=tasks.find(t=>t.id===id);
+tasks=tasks.filter(t=>t.id!==id);
+completedTasks.push(task);
+saveData();renderTasks();
+}
+
+function clearAll(){
+if(confirm("ล้างข้อมูลทั้งหมด?")){
+tasks=[];completedTasks=[];studyPlans=[];
+statsData.streak=0;
+saveData();renderTasks();
+}
+}
+
+function renderTasks(){
+const todo=document.getElementById("todoList");
+const done=document.getElementById("completedList");
+todo.innerHTML="";done.innerHTML="";
+tasks.sort((a,b)=>a.timestamp-b.timestamp);
+tasks.forEach(task=>{
+const div=document.createElement("div");
+div.className="todo-item";
+div.innerHTML=`
+<span>${task.subject}<br>
+<small>${new Date(task.timestamp).toLocaleString("th-TH")}</small></span>
+<div>
+<button onclick="completeTask(${task.id})">✅</button>
+<button onclick="deleteTask(${task.id})">🗑️</button>
+</div>`;
+todo.appendChild(div);
+});
+completedTasks.forEach(task=>{
+const div=document.createElement("div");
+div.className="todo-item completed";
+div.textContent=task.subject;
+done.appendChild(div);
+});
+updateHeroSection();
+updateStats();
+}
+
+function updateHeroSection(){
+if(tasks.length===0){
+document.getElementById("heroSubject").textContent="ยังไม่มีวิชา";
+document.getElementById("heroCountdown").textContent="--";
+return;
+}
+tasks.sort((a,b)=>a.timestamp-b.timestamp);
+const nextExam=tasks[0];
+document.getElementById("heroSubject").textContent=nextExam.subject;
+const now=Date.now();
+const distance=nextExam.timestamp-now;
+if(distance<=0){completeTask(nextExam.id);return;}
+const days=Math.floor(distance/(1000*60*60*24));
+const hours=Math.floor((distance%(1000*60*60*24))/(1000*60*60));
+const minutes=Math.floor((distance%(1000*60*60))/(1000*60));
+const seconds=Math.floor((distance%(1000*60))/1000);
+document.getElementById("heroCountdown").textContent=
+`${days} วัน ${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
+}
+setInterval(updateHeroSection,1000);
+
+function generateStudyPlan(){
+if(studyPlans.length>0){
+if(!confirm("สร้างใหม่จะลบแผนเดิม ต้องการดำเนินการต่อ?")) return;
+}
+studyPlans=[];
+const intervalDays = examMode ? 1 : 2;
+tasks.forEach(task=>{
+const now=new Date();
+const examDate=new Date(task.timestamp);
+let readDate=new Date(now);
+readDate.setDate(readDate.getDate()+intervalDays);
+while(readDate<examDate){
+studyPlans.push({
+id:Date.now()+Math.random(),
+subject:task.subject,
+readDate:new Date(readDate),
+postponeCount:0
+});
+readDate.setDate(readDate.getDate()+intervalDays);
+}
+});
+saveData();
+renderStudyPlans();
+}
+
+function renderStudyPlans(){
+const list=document.getElementById("studyPlanList");
+const alertBox=document.getElementById("todayAlert");
+if(!list) return;
+
+list.innerHTML="";
+
+const today=new Date();
+today.setHours(0,0,0,0);
+
+// ลบแผนที่เลยวันแล้ว
+studyPlans=studyPlans.filter(p=>{
+const d=new Date(p.readDate);
+d.setHours(0,0,0,0);
+return d>=today;
+});
+
+// เรียงก่อน
+studyPlans.sort((a,b)=>new Date(a.readDate)-new Date(b.readDate));
+
+// จัดกลุ่มตามวันที่
+const grouped={};
+
+studyPlans.forEach(plan=>{
+const dateKey=new Date(plan.readDate).toDateString();
+if(!grouped[dateKey]) grouped[dateKey]=[];
+grouped[dateKey].push(plan);
+});
+
+let todayCount=0;
+
+// แสดงผลแบบแยกวัน
+Object.keys(grouped).forEach(dateKey=>{
+
+const dateObj=new Date(dateKey);
+
+// กล่องหัววันที่
+const dateHeader=document.createElement("div");
+dateHeader.className="card";
+dateHeader.style.background="linear-gradient(135deg,#6C63FF,#9C88FF)";
+dateHeader.style.color="white";
+dateHeader.style.fontWeight="800";
+dateHeader.innerHTML=`📅 ${dateObj.toLocaleDateString("th-TH",{weekday:'long',year:'numeric',month:'long',day:'numeric'})}`;
+list.appendChild(dateHeader);
+
+// แต่ละวิชาในวันนั้น
+grouped[dateKey].forEach(plan=>{
+
+const planDate=new Date(plan.readDate);
+if(planDate.toDateString()===today.toDateString()) todayCount++;
+
+const div=document.createElement("div");
+div.className="todo-item";
+div.innerHTML=`
+<span><b>${plan.subject}</b></span>
+<div>
+<button onclick="markRead(${plan.id})">✅</button>
+<button onclick="postponeRead(${plan.id})">⏭</button>
+</div>`;
+list.appendChild(div);
+
+});
+
+});
+
+alertBox.innerHTML=todayCount>0?
+`<div class="card">📢 วันนี้ต้องอ่าน ${todayCount} วิชา</div>`:"";
+
+saveData();
+}
+function markRead(id){
+studyPlans=studyPlans.filter(p=>p.id!==id);
+statsData.streak++;
+saveData();
+renderStudyPlans();
+updateStats();
+showPopup("เยี่ยมมาก 🔥");
+}
+
+function postponeRead(id){
+let plan=studyPlans.find(p=>p.id===id);
+plan.postponeCount++;
+plan.readDate=new Date(plan.readDate);
+plan.readDate.setDate(plan.readDate.getDate()+1);
+saveData();
+renderStudyPlans();
+showPopup("เลื่อนไปพรุ่งนี้แล้วนะ");
+}
+
+function toggleExamMode(){
+examMode=!examMode;
+document.getElementById("heroCard").classList.toggle("exam-mode");
+generateStudyPlan();
+}
+
+function updateStats(){
+const total=tasks.length+completedTasks.length;
+const done=completedTasks.length;
+const percent=total===0?0:Math.round((done/total)*100);
+document.getElementById("progressBar").style.width=percent+"%";
+document.getElementById("progressText").textContent="ความคืบหน้า "+percent+"%";
+document.getElementById("statTotal").textContent=total;
+document.getElementById("statDone").textContent=done;
+document.getElementById("statUpcoming").textContent=tasks.length;
+document.getElementById("statPercent").textContent=percent+"%";
+document.getElementById("streakDisplay").textContent=statsData.streak;
+
+if(chart) chart.destroy();
+chart=new Chart(document.getElementById("progressChart"),{
+type:'doughnut',
+data:{
+labels:['สอบแล้ว','กำลังจะสอบ'],
+datasets:[{
+data:[done,tasks.length],
+backgroundColor:['#4CAF50','#6C63FF']
+}]
+}
+});
+}
+
+renderTasks();
+renderStudyPlans();
+</script>
+
+</body>
+</html>
